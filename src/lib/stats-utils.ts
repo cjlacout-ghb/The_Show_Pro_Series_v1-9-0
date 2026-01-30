@@ -15,9 +15,12 @@ export interface PlayerStats {
 export interface BattingLeader extends Player {
     teamName: string;
     avg: number;
+    pa: number;
+    ab: number;
+    h: number;
+    bb: number;
     hr: number;
     rbi: number;
-    h: number;
     r: number;
 }
 
@@ -27,6 +30,7 @@ export interface BattingLeader extends Player {
 export interface PitchingLeader extends Player {
     teamName: string;
     era: number;
+    er: number;
     so: number;
     ip: number;
     w: number;
@@ -165,9 +169,12 @@ export function getBattingLeaders(
             return {
                 ...ps.player,
                 avg: ab > 0 ? h / ab : 0,
+                pa: ps.batting.plateAppearances || 0,
+                ab: ab,
+                h: h,
+                bb: ps.batting.walks || 0,
                 hr: ps.batting.homeRuns || 0,
                 rbi: ps.batting.rbi || 0,
-                h: h,
                 r: ps.batting.runs || 0
             };
         })
@@ -198,6 +205,7 @@ export function getPitchingLeaders(
             return {
                 ...ps.player,
                 era: era,
+                er: er,
                 so: ps.pitching.strikeOuts || 0,
                 ip: ip,
                 w: ps.pitching.wins || 0

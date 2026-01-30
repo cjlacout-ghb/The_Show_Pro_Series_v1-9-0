@@ -28,6 +28,7 @@ type ScheduleCardProps = {
   onSaveBatting: (gameId: number, playerId: number, stats: Partial<BattingStat>) => Promise<void>;
   onSavePitching: (gameId: number, playerId: number, stats: Partial<PitchingStat>) => Promise<void>;
   onSwapTeams: (gameId: number) => void;
+  onImportStats?: (gameId: number, txt: string) => Promise<any>;
   onNavigate?: () => void;
   onNavigateToStandings?: () => void;
   footer?: React.ReactNode;
@@ -44,6 +45,7 @@ export default function ScheduleCard({
   onSaveBatting,
   onSavePitching,
   onSwapTeams,
+  onImportStats,
   onNavigate,
   onNavigateToStandings,
   footer,
@@ -297,7 +299,12 @@ export default function ScheduleCard({
                     onSaveBatting={(playerId, stats) => onSaveBatting(game.id, playerId, stats)}
                     onSavePitching={(playerId, stats) => onSavePitching(game.id, playerId, stats)}
                     isAdmin={isAdmin}
+                    onImportStats={async (txt) => {
+                      if (!isAdmin || !onImportStats) return;
+                      await onImportStats(game.id, txt);
+                    }}
                   />
+
                   <div className="flex gap-2">
                     {onNavigateToStandings && (
                       <Button

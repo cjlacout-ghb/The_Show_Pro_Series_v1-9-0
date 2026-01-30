@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import type { Team, Game, Standing, BattingStat, PitchingStat } from "@/lib/types";
-import { updateGame, saveBattingStat, savePitchingStat, resetTournamentScores } from "@/app/actions";
+import { updateGame, saveBattingStat, savePitchingStat, resetTournamentScores, importGameStatsFromTxt } from "@/app/actions";
 import { useToast } from "@/hooks/use-toast";
 import { useStandings } from "./useStandings";
 import { updateGameInning, swapGameTeams, ensureGameInnings } from "@/lib/innings-utils";
@@ -263,6 +263,19 @@ export function useTournamentState({ initialTeams, initialGames }: UseTournament
         }
     }, [championshipGame.id, markGameForPersistence]);
 
+    const handleImportStats = useCallback(async (gameId: number, txt: string) => {
+        const token = await getAuthToken();
+        if (!token) {
+            throw new Error("No has iniciado sesión como administrador (Token faltante).");
+        }
+        const result = await importGameStatsFromTxt(gameId, txt, token);
+        if (result.success) {
+            // Force a reload to refresh all data (Standings, Leaders, etc.)
+            window.location.reload();
+        }
+        return result;
+    }, [getAuthToken]);
+
     const checkChampionshipWinner = useCallback((finalGame: Game) => {
         const { team1Id, team2Id, score1, score2 } = finalGame;
         if (score1 !== "" && score2 !== "" && score1 !== score2) {
@@ -368,6 +381,7 @@ export function useTournamentState({ initialTeams, initialGames }: UseTournament
         handleSaveBatting,
         handleSavePitching,
         handleSwapTeams,
+        handleImportStats,
         handleResetTournament
     };
 }

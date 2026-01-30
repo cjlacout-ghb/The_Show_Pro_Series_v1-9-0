@@ -20,6 +20,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Button } from "./ui/button";
+import { TieBreakRulesDialog } from "./TieBreakRulesDialog";
 
 type StandingsTableProps = {
   standings: Standing[];
@@ -130,13 +131,7 @@ export default function StandingsTable({
         </div>
       </CardContent>
       <CardFooter className="flex flex-col items-start gap-4 p-6 border-t border-primary/5 bg-primary/[0.01]">
-        {hasTies && (
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/20">
-            <span className="text-[10px] font-bold uppercase tracking-widest text-amber-500">
-              (*) Equipos empatados por criterios de desempate
-            </span>
-          </div>
-        )}
+        {hasTies && <TieBreakRulesDialog />}
         {onNavigate && (
           <div className="flex justify-end w-full">
             <Button

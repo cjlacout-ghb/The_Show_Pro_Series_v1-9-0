@@ -2,6 +2,7 @@
 "use client";
 
 import { useState, Fragment } from "react";
+import { supabase } from "@/lib/supabase";
 import type { Team } from "@/lib/types";
 import {
   Accordion,
@@ -44,6 +45,7 @@ export default function TeamSetup({ teams, openAccordion, setOpenAccordion, onNa
   const [importingTeam, setImportingTeam] = useState<Team | null>(null);
   const [csvData, setCsvData] = useState("");
   const [isImporting, setIsImporting] = useState(false);
+  const [replaceMode, setReplaceMode] = useState(false);
 
   // Edit State
   const [editingPlayerId, setEditingPlayerId] = useState<number | null>(null);
@@ -54,6 +56,7 @@ export default function TeamSetup({ teams, openAccordion, setOpenAccordion, onNa
   const handleOpenImport = (team: Team) => {
     setImportingTeam(team);
     setCsvData("");
+    // Don't reset replaceMode here because we might have just set it
   };
 
   const handleImport = async () => {
@@ -62,7 +65,10 @@ export default function TeamSetup({ teams, openAccordion, setOpenAccordion, onNa
     setIsImporting(true);
 
     try {
-      const result = await importPlayers(importingTeam.id, csvData);
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+
+      const result = await importPlayers(importingTeam.id, csvData, token, replaceMode);
 
       if (result.success) {
         if ((result.count ?? 0) > 0) {
@@ -108,12 +114,14 @@ export default function TeamSetup({ teams, openAccordion, setOpenAccordion, onNa
     if (!editingPlayerId) return;
 
     try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
       await updatePlayer(editingPlayerId, {
         number: parseInt(editForm.number) || 0,
         name: editForm.name,
         role: editForm.role,
         placeOfBirth: editForm.placeOfBirth
-      });
+      }, token);
       toast({ title: "Jugador actualizado" });
       setEditingPlayerId(null);
     } catch (error) {
@@ -222,7 +230,7 @@ export default function TeamSetup({ teams, openAccordion, setOpenAccordion, onNa
                   )}
 
                   {isAdmin && (
-                    <div className="flex justify-start">
+                    <div className="flex justify-start gap-4">
                       <Button
                         variant="outline"
                         size="sm"
@@ -230,7 +238,21 @@ export default function TeamSetup({ teams, openAccordion, setOpenAccordion, onNa
                         className="gap-2 border-primary/20 hover:border-primary hover:bg-primary/5 text-[11px] font-bold uppercase tracking-wider"
                       >
                         <Upload className="h-3.5 w-3.5" />
-                        Importar Jugadores
+                        Agregar Jugadores
+                      </Button>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => {
+                          if (confirm("¿ESTÁS SEGURO? Esto borrará todos los jugadores actuales de este equipo y los reemplazará con la nueva lista.")) {
+                            setReplaceMode(true);
+                            handleOpenImport(team);
+                          }
+                        }}
+                        className="gap-2 text-[11px] font-bold uppercase tracking-wider bg-red-900/20 hover:bg-red-900/40 text-red-500 border border-red-900/50"
+                      >
+                        <Upload className="h-3.5 w-3.5" />
+                        Reemplazar Roster
                       </Button>
                     </div>
                   )}
@@ -252,7 +274,12 @@ export default function TeamSetup({ teams, openAccordion, setOpenAccordion, onNa
         </CardFooter>
       )}
 
-      <Dialog open={!!importingTeam} onOpenChange={(open) => !open && setImportingTeam(null)}>
+      <Dialog open={!!importingTeam} onOpenChange={(open) => {
+        if (!open) {
+          setImportingTeam(null);
+          setReplaceMode(false);
+        }
+      }}>
         <DialogContent className="sm:max-w-[500px] border-primary/20 shadow-2xl bg-card/95 backdrop-blur-md">
           <DialogHeader>
             <DialogTitle className="text-xl font-black uppercase tracking-tighter">
@@ -283,4 +310,3 @@ export default function TeamSetup({ teams, openAccordion, setOpenAccordion, onNa
     </Card>
   );
 }
-

@@ -3,6 +3,7 @@
 import { createClient } from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabase'
 import { revalidatePath } from 'next/cache'
+import { parseGameStats } from '@/lib/stats-parser'
 
 const ADMIN_EMAIL = "cjlacout.antigravity@gmail.com";
 
@@ -59,6 +60,8 @@ interface DBGame {
     errors1: number | null;
     errors2: number | null;
     innings: any[];
+    batting_stats?: any[];
+    pitching_stats?: any[];
 }
 
 export async function getTeams() {
@@ -75,39 +78,91 @@ export async function getTeams() {
         return []
     }
 
-    // Map snake_case to camelCase for the UI
-    return (teams as DBTeam[]).map(team => ({
-        ...team,
-        players: team.players.map((p: any) => ({
-            ...p,
-            placeOfBirth: p.place_of_birth
-        }))
-    }))
+    // Map snake_case to camelCase for the UI and handle team replacement
+    return (teams as DBTeam[]).map(team => {
+        const isMayo = team.name === "MAYO'S (MEX)";
+        return {
+            ...team,
+            name: isMayo ? "ARGENTINA U23 (ARG)" : team.name,
+            players: team.players.map((p: any) => ({
+                ...p,
+                placeOfBirth: isMayo ? "ARGENTINA" : p.place_of_birth
+            }))
+        };
+    })
 }
 
 export async function getGames() {
-    const { data: games, error } = await supabase
+    // Fetch games first
+    const { data: games, error: gamesError } = await supabase
         .from('games')
         .select('*')
         .order('id')
 
-    if (error) {
-        console.error('Error fetching games:', error)
+    if (gamesError) {
+        console.error('Error fetching games:', gamesError)
         return []
     }
 
-    return (games as DBGame[]).map(game => ({
-        ...game,
-        team1Id: String(game.team1_id),
-        team2Id: String(game.team2_id),
-        score1: game.score1?.toString() ?? "",
-        score2: game.score2?.toString() ?? "",
-        hits1: game.hits1?.toString() ?? "",
-        hits2: game.hits2?.toString() ?? "",
-        errors1: game.errors1?.toString() ?? "",
-        errors2: game.errors2?.toString() ?? "",
-        isChampionship: game.id === 16
-    }))
+    // Fetch all batting stats
+    const { data: battingStats, error: bError } = await supabase
+        .from('batting_stats')
+        .select('*')
+
+    if (bError) {
+        console.error('Error fetching batting_stats:', bError)
+    }
+
+    // Fetch all pitching stats
+    const { data: pitchingStats, error: pError } = await supabase
+        .from('pitching_stats')
+        .select('*')
+
+    if (pError) {
+        console.error('Error fetching pitching_stats:', pError)
+    }
+
+    console.log(`[getGames] Fetched ${games?.length} games, ${battingStats?.length || 0} batting stats, ${pitchingStats?.length || 0} pitching stats`);
+
+    // Helper to flatten stats from JSONB column
+    const flattenStat = (dbRow: any) => {
+        if (!dbRow) return null;
+        // The stats are stored in a JSONB 'stats' column
+        const statsData = dbRow.stats || {};
+        return {
+            playerId: dbRow.player_id,
+            gameId: dbRow.game_id,
+            ...statsData
+        };
+    };
+
+    // Map stats to games
+    return (games as DBGame[]).map(game => {
+        const gameBattingStats = (battingStats || [])
+            .filter((s: any) => s.game_id === game.id)
+            .map(flattenStat)
+            .filter(Boolean);
+        const gamePitchingStats = (pitchingStats || [])
+            .filter((s: any) => s.game_id === game.id)
+            .map(flattenStat)
+            .filter(Boolean);
+
+        return {
+            ...game,
+            team1Id: String(game.team1_id),
+            team2Id: String(game.team2_id),
+            score1: game.score1?.toString() ?? "",
+            score2: game.score2?.toString() ?? "",
+            hits1: game.hits1?.toString() ?? "",
+            hits2: game.hits2?.toString() ?? "",
+            errors1: game.errors1?.toString() ?? "",
+            errors2: game.errors2?.toString() ?? "",
+            innings: game.innings || [],
+            battingStats: gameBattingStats,
+            pitchingStats: gamePitchingStats,
+            isChampionship: game.id === 16
+        };
+    })
 }
 
 export async function saveBattingStat(data: { playerId: number, gameId: number, stats: any, token?: string }) {
@@ -168,6 +223,16 @@ function mapToSnakeCase(obj: any) {
     for (const key in obj) {
         const snakeKey = key.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
         result[snakeKey] = obj[key];
+    }
+    return result;
+}
+
+function mapToCamelCase(obj: any) {
+    const result: any = {};
+    if (!obj) return result;
+    for (const key in obj) {
+        const camelKey = key.replace(/_([a-z])/g, (g) => g[1].toUpperCase());
+        result[camelKey] = obj[key];
     }
     return result;
 }
@@ -249,7 +314,7 @@ export async function updateGame(gameId: number, data: any, token?: string) {
     revalidatePath('/')
 }
 
-export async function importPlayers(teamId: number, csvData: string, token?: string) {
+export async function importPlayers(teamId: number, csvData: string, token?: string, replace: boolean = false) {
     const client = getRequestClient(token);
     await verifyAdmin(client, token);
     const lines = csvData.trim().split('\n');
@@ -290,6 +355,21 @@ export async function importPlayers(teamId: number, csvData: string, token?: str
         }
     }
 
+    if (replace && teamId) {
+        console.log(`[ACTION] Replacing roster for Team ${teamId}. Deleting old players...`);
+        // Be careful: if we delete players, we lose their stats unless we duplicate IDs (which we can't easily do from CSV without checking names).
+        // Since the user asked for "Brand new list", we assume a fresh start or fixing a roster.
+        const { error: deleteError } = await client
+            .from('players')
+            .delete()
+            .eq('team_id', teamId);
+
+        if (deleteError) {
+            console.error('Error deleting old roster:', deleteError);
+            return { success: false, error: "Error al borrar roster anterior: " + deleteError.message };
+        }
+    }
+
     if (playersToInsert.length > 0) {
         const { error, count } = await client.from('players').insert(playersToInsert)
         if (error) {
@@ -324,8 +404,6 @@ export async function updatePlayer(playerId: number, data: { number?: number, na
     revalidatePath('/');
     return { success: true };
 }
-
-
 
 export async function resetTournamentScores(token?: string) {
     try {
@@ -405,4 +483,163 @@ export async function resetTournamentScores(token?: string) {
         console.error('Reset action failed:', err);
         return { success: false, error: err.message || 'Error desconocido al reiniciar el torneo' };
     }
+}
+
+export async function importGameStatsFromTxt(gameId: number, txtData: string, token?: string) {
+    console.log(`[ACTION] Importing stats for game ${gameId}`);
+    const client = getRequestClient(token);
+    await verifyAdmin(client, token);
+
+    const parsedData = parseGameStats(txtData);
+
+    // Verify game ID matches
+    if (parsedData.gameId && parsedData.gameId !== gameId) {
+        throw new Error(`El archivo contiene datos para el Juego ${parsedData.gameId}, pero estás intentando importar en el Juego ${gameId}.`);
+    }
+
+    // 1. Fetch current game info to know teams
+    const { data: game, error: gameError } = await client
+        .from('games')
+        .select('team1_id, team2_id')
+        .eq('id', gameId)
+        .single();
+
+    if (gameError || !game) throw new Error("No se encontró el juego.");
+
+    // Assumption: Team 1 is Visitor, Team 2 is Local.
+    const team1Id = game.team1_id;
+    const team2Id = game.team2_id;
+
+    if (!team1Id || !team2Id) throw new Error("El juego no tiene equipos asignados todavía.");
+
+    // 2. Fetch all players for these teams to match names efficiently
+    const { data: players, error: playersError } = await client
+        .from('players')
+        .select('id, name, number, team_id')
+        .in('team_id', [team1Id, team2Id]);
+
+    if (playersError) throw new Error("Error obteniendo jugadores.");
+
+    const findPlayer = (name: string, number: number, teamId: number) => {
+        // First try finding by Number + Team (Closest match)
+        const exactMatch = players?.find(p => p.team_id === teamId && p.number === number);
+        if (exactMatch) return exactMatch;
+
+        // Fallback: finding by Name in that team (using a loose match)
+        // Normalize: remove accents, lowercase
+        const normalize = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/,/g, "");
+        const targetName = normalize(name);
+
+        return players?.find(p => p.team_id === teamId && normalize(p.name) === targetName);
+    };
+
+    // Helper to process batter list
+    const processBatters = async (batters: any[], teamId: number) => {
+        let successCount = 0;
+        for (const b of batters) {
+            const player = findPlayer(b.name, b.number, teamId);
+            if (player) {
+                console.log(`[IMPORT] Matched batter #${b.number} "${b.name}" to player ID ${player.id} (${player.name})`);
+                // Database uses a JSONB 'stats' column, not individual columns
+                const statsObj = {
+                    plateAppearances: b.pa,
+                    atBats: b.ab,
+                    runs: b.r,
+                    hits: b.h,
+                    doubles: b.doubles,
+                    triples: b.triples,
+                    homeRuns: b.hr,
+                    rbi: b.rbi,
+                    walks: b.bb,
+                    strikeOuts: b.so,
+                    stolenBases: b.sb
+                };
+                const { error } = await client.from('batting_stats').upsert({
+                    player_id: player.id,
+                    game_id: gameId,
+                    stats: statsObj,
+                    updated_at: new Date().toISOString()
+                }, { onConflict: 'player_id,game_id' });
+                if (error) {
+                    console.error(`[IMPORT ERROR] Failed to upsert batter ${player.id}:`, error);
+                } else {
+                    successCount++;
+                }
+            } else {
+                console.warn(`[WARN] Batter not found: #${b.number} ${b.name} (Team ${teamId})`);
+            }
+        }
+        console.log(`[IMPORT] Processed ${successCount}/${batters.length} batters for team ${teamId}`);
+    };
+
+    // Helper to process pitcher list
+    const processPitchers = async (pitchers: any[], teamId: number) => {
+        let successCount = 0;
+        for (const p of pitchers) {
+            const player = findPlayer(p.name, p.number, teamId);
+            if (player) {
+                console.log(`[IMPORT] Matched pitcher #${p.number} "${p.name}" to player ID ${player.id} (${player.name})`);
+                // Database uses a JSONB 'stats' column, not individual columns
+                const statsObj = {
+                    inningsPitched: p.ip,
+                    hits: p.h,
+                    runs: p.r,
+                    earnedRuns: p.er,
+                    walks: p.bb,
+                    strikeOuts: p.so,
+                    homeRuns: p.hr,
+                    wins: p.w,
+                    losses: p.l,
+                    saves: p.s
+                };
+                const { error } = await client.from('pitching_stats').upsert({
+                    player_id: player.id,
+                    game_id: gameId,
+                    stats: statsObj,
+                    updated_at: new Date().toISOString()
+                }, { onConflict: 'player_id,game_id' });
+                if (error) {
+                    console.error(`[IMPORT ERROR] Failed to upsert pitcher ${player.id}:`, error);
+                } else {
+                    successCount++;
+                }
+            } else {
+                console.warn(`[WARN] Pitcher not found: #${p.number} ${p.name} (Team ${teamId})`);
+            }
+        }
+        console.log(`[IMPORT] Processed ${successCount}/${pitchers.length} pitchers for team ${teamId}`);
+    }
+
+    // 3. Update Game Scoreboard (Innings, R, H, E)
+    // Construct innings array: zip visitor and local innings
+    // The format in DB is [[rVis, rLoc], [rVis, rLoc], ...]
+    const inningsArray: string[][] = [];
+    const maxInnings = Math.max(parsedData.visitorInnings.length, parsedData.localInnings.length);
+    for (let i = 0; i < maxInnings; i++) {
+        inningsArray.push([
+            parsedData.visitorInnings[i] || "",
+            parsedData.localInnings[i] || ""
+        ]);
+    }
+
+    await client.from('games').update({
+        score1: parsedData.visitorRHE.r,
+        hits1: parsedData.visitorRHE.h,
+        errors1: parsedData.visitorRHE.e,
+        score2: parsedData.localRHE.r,
+        hits2: parsedData.localRHE.h,
+        errors2: parsedData.localRHE.e,
+        innings: inningsArray
+    }).eq('id', gameId);
+
+    // 4. Process Player Stats
+    // Visitor = team1, Local = team2 (By convention in schedule-card)
+    await processBatters(parsedData.visitorBatters, team1Id);
+    await processBatters(parsedData.localBatters, team2Id);
+
+    await processPitchers(parsedData.visitorPitchers, team1Id);
+    await processPitchers(parsedData.localPitchers, team2Id);
+
+    revalidatePath('/');
+    return { success: true };
 }

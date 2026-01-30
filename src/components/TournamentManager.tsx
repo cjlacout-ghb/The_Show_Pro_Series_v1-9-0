@@ -29,8 +29,6 @@ import AdminAuthPanel from "./AdminAuthPanel";
 interface TournamentManagerProps {
     initialTeams: Team[];
     initialGames: Game[];
-    initialBattingStats: any[];
-    initialPitchingStats: any[];
 }
 
 export default function TournamentManager({ initialTeams, initialGames }: TournamentManagerProps) {
@@ -54,6 +52,7 @@ export default function TournamentManager({ initialTeams, initialGames }: Tourna
         handleSaveBatting,
         handleSavePitching,
         handleSwapTeams,
+        handleImportStats,
         handleResetTournament
     } = useTournamentState({ initialTeams, initialGames });
 
@@ -178,6 +177,7 @@ export default function TournamentManager({ initialTeams, initialGames }: Tourna
                                     onSaveBatting={handleSaveBatting}
                                     onSavePitching={handleSavePitching}
                                     onSwapTeams={handleSwapTeams}
+                                    onImportStats={handleImportStats}
                                     onNavigate={handleReturnToTop}
                                     onNavigateToStandings={() => setCurrentView('standings')}
                                     isAdmin={isAdmin}
@@ -191,6 +191,7 @@ export default function TournamentManager({ initialTeams, initialGames }: Tourna
                                     onSaveBatting={handleSaveBatting}
                                     onSavePitching={handleSavePitching}
                                     onSwapTeams={handleSwapTeams}
+                                    onImportStats={handleImportStats}
                                     onNavigate={handleReturnToTop}
                                     onNavigateToStandings={() => setCurrentView('standings')}
                                     isChampionship

@@ -52,7 +52,7 @@ export default function LeaderBoardTable<T extends LeaderRowData>({
                             <TableHead
                                 key={String(col.key)}
                                 className={cn(
-                                    "text-[10px] font-black uppercase tracking-widest text-primary/60",
+                                    "text-[10px] font-black uppercase tracking-widest text-primary/60 font-mono",
                                     col.key === 'rank' && "w-12 text-center",
                                     col.align === 'right' && "text-right",
                                     col.align === 'center' && "text-center"
@@ -78,10 +78,10 @@ export default function LeaderBoardTable<T extends LeaderRowData>({
                                 if (col.key === 'name') {
                                     return (
                                         <TableCell key="name" className="py-4">
-                                            <div className="font-bold text-sm uppercase tracking-tight group-hover:text-primary transition-colors">
+                                            <div className="font-mono font-bold text-sm uppercase tracking-tight group-hover:text-primary transition-colors">
                                                 {leader.name}
                                             </div>
-                                            <div className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">
+                                            <div className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold font-mono">
                                                 {leader.teamName}
                                             </div>
                                         </TableCell>
@@ -95,10 +95,11 @@ export default function LeaderBoardTable<T extends LeaderRowData>({
                                     <TableCell
                                         key={String(col.key)}
                                         className={cn(
+                                            "font-mono tabular-nums",
                                             col.align === 'right' && "text-right",
                                             col.align === 'center' && "text-center",
-                                            col.isPrimary && "font-mono font-black text-primary text-base",
-                                            !col.isPrimary && "font-bold"
+                                            col.isPrimary && "font-black text-primary text-lg",
+                                            !col.isPrimary && "font-bold text-sm"
                                         )}
                                     >
                                         {formattedValue}

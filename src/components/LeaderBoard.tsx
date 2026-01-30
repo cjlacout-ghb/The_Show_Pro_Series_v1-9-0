@@ -25,7 +25,7 @@ export default function LeaderBoard({ games, teams }: LeaderBoardProps) {
     const pitchingLeaders = getPitchingLeaders(playerStats, teamGamesPlayed);
 
     const battingColumns = [
-        { key: 'rank' as const, label: '#' },
+        { key: 'rank' as const, label: '' },
         { key: 'name' as const, label: 'Jugador / Equipo' },
         {
             key: 'avg' as const,
@@ -34,12 +34,16 @@ export default function LeaderBoard({ games, teams }: LeaderBoardProps) {
             isPrimary: true,
             format: (v: number) => v.toFixed(3).replace(/^0/, '')
         },
+        { key: 'pa' as const, label: 'PA', align: 'right' as const },
+        { key: 'ab' as const, label: 'AB', align: 'right' as const },
+        { key: 'h' as const, label: 'H', align: 'right' as const },
+        { key: 'bb' as const, label: 'BB', align: 'right' as const },
         { key: 'hr' as const, label: 'HR', align: 'right' as const },
         { key: 'rbi' as const, label: 'RBI', align: 'right' as const },
     ];
 
     const pitchingColumns = [
-        { key: 'rank' as const, label: '#' },
+        { key: 'rank' as const, label: '' },
         { key: 'name' as const, label: 'Jugador / Equipo' },
         {
             key: 'era' as const,
@@ -48,13 +52,14 @@ export default function LeaderBoard({ games, teams }: LeaderBoardProps) {
             isPrimary: true,
             format: (v: number) => v.toFixed(2)
         },
-        { key: 'so' as const, label: 'SO', align: 'right' as const },
+        { key: 'er' as const, label: 'ER', align: 'right' as const },
         {
             key: 'ip' as const,
             label: 'IP',
             align: 'right' as const,
             format: (v: number) => v.toFixed(1)
         },
+        { key: 'so' as const, label: 'SO', align: 'right' as const },
     ];
 
     return (
