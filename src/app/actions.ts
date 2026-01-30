@@ -71,25 +71,21 @@ export async function getTeams() {
             *,
             players (*)
         `)
-        .order('id')
+        .order('name')
 
     if (error) {
         console.error('Error fetching teams:', error)
         return []
     }
 
-    // Map snake_case to camelCase for the UI and handle team replacement
-    return (teams as DBTeam[]).map(team => {
-        const isMayo = team.name === "MAYO'S (MEX)";
-        return {
-            ...team,
-            name: isMayo ? "ARGENTINA U23 (ARG)" : team.name,
-            players: team.players.map((p: any) => ({
-                ...p,
-                placeOfBirth: isMayo ? "ARGENTINA" : p.place_of_birth
-            }))
-        };
-    })
+    // Map snake_case to camelCase for the UI
+    return (teams as DBTeam[]).map(team => ({
+        ...team,
+        players: team.players.map((p: any) => ({
+            ...p,
+            placeOfBirth: p.place_of_birth
+        }))
+    }))
 }
 
 export async function getGames() {

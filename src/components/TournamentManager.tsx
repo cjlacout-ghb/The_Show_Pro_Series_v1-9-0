@@ -54,7 +54,7 @@ export default function TournamentManager({ initialTeams, initialGames }: Tourna
         handleSwapTeams,
         handleImportStats,
         handleResetTournament
-    } = useTournamentState({ initialTeams, initialGames });
+    } = useTournamentState({ initialTeams, initialGames, isAdmin });
 
     const [currentView, setCurrentView] = useState<ViewType>('menu');
     const [openAccordion, setOpenAccordion] = useState<string | undefined>(undefined);
@@ -138,7 +138,7 @@ export default function TournamentManager({ initialTeams, initialGames }: Tourna
                         {currentView === 'standings' && (
                             <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
                                 {champion && <ChampionCard ref={championCardRef} championName={champion} />}
-                                <StandingsTable teams={teams} standings={standings} onNavigate={handleReturnToTop} />
+                                <StandingsTable teams={teams} standings={standings} champion={champion} onNavigate={handleReturnToTop} />
                             </div>
                         )}
 

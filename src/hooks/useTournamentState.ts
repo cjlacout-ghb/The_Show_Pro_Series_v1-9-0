@@ -9,9 +9,10 @@ import { supabase } from "@/lib/supabase";
 export interface UseTournamentStateProps {
     initialTeams: Team[];
     initialGames: Game[];
+    isAdmin?: boolean;
 }
 
-export function useTournamentState({ initialTeams, initialGames }: UseTournamentStateProps) {
+export function useTournamentState({ initialTeams, initialGames, isAdmin }: UseTournamentStateProps) {
     const [teams, setTeams] = useState<Team[]>(initialTeams);
     const [preliminaryGames, setPreliminaryGames] = useState<Game[]>(
         initialGames
@@ -91,10 +92,53 @@ export function useTournamentState({ initialTeams, initialGames }: UseTournament
                     team1Id,
                     team2Id
                 }));
-                markGameForPersistence(championshipGame.id);
+                if (isAdmin) {
+                    markGameForPersistence(championshipGame.id);
+                }
             }
         }
-    }, [preliminaryGames, calculateStandings, markGameForPersistence, championshipGame.id, championshipGame.team1Id, championshipGame.team2Id]);
+    }, [preliminaryGames, calculateStandings, markGameForPersistence, championshipGame.id, championshipGame.team1Id, championshipGame.team2Id, isAdmin]);
+
+    const checkChampionshipWinner = useCallback((finalGame: Game) => {
+        const { team1Id, team2Id, score1, score2, innings } = finalGame;
+        if (score1 !== "" && score2 !== "" && score1 !== score2) {
+            // Only define a champion if the game is actually over.
+            // A game is over if it reaches at least 7 innings AND the bottom of the last inning is filled.
+            if (innings && innings.length >= 7) {
+                const lastInning = innings[innings.length - 1];
+                const bottomValue = lastInning[1];
+
+                // Check if there is any inning data entered.
+                // If there is, we enforce the "last inning complete" rule.
+                const hasInningData = innings.some(inn => inn[0] !== "" || inn[1] !== "");
+
+                if (hasInningData && (bottomValue === "" || bottomValue === null)) {
+                    // Game is still in progress (inning-by-inning mode)
+                    return;
+                }
+            }
+
+            const s1 = parseInt(score1);
+            const s2 = parseInt(score2);
+            const winnerId = s1 > s2 ? team1Id : team2Id;
+
+            const winner = teams.find(t => String(t.id) === winnerId);
+            // Avoid repeating the toast if the champion is already set
+            if (winner && champion !== winner.name) {
+                setChampion(winner.name);
+                setShowConfetti(true);
+                toast({
+                    title: "¡Campeón Definido!",
+                    description: `El equipo campeón es ${winner.name}.`
+                });
+            }
+        }
+    }, [teams, toast, champion]);
+
+    // Championship winner check effect
+    useEffect(() => {
+        checkChampionshipWinner(championshipGame);
+    }, [championshipGame, checkChampionshipWinner]);
 
     // Persistence effect
     useEffect(() => {
@@ -120,7 +164,10 @@ export function useTournamentState({ initialTeams, initialGames }: UseTournament
                     if (gameToSave) {
                         const token = await getAuthToken();
                         if (!token) {
-                            throw new Error("No has iniciado sesión como administrador (Token faltante).");
+                            // Silent exit if no token - especially for auto-updates like the championship game.
+                            // We don't want to show an error toast to regular users just because standings changed.
+                            console.warn(`[PERSISTENCE] Skipping save for game ${gameId} because no auth token is available.`);
+                            continue;
                         }
                         await updateGame(gameToSave.id, gameToSave, token);
                     }
@@ -149,14 +196,8 @@ export function useTournamentState({ initialTeams, initialGames }: UseTournament
         isChampionship = false
     ) => {
         if (isChampionship) {
-            setChampionshipGame(prev => {
-                const updatedGame = { ...prev, [field]: value };
-                if (field === 'score1' || field === 'score2') {
-                    checkChampionshipWinner(updatedGame);
-                }
-                markGameForPersistence(gameId);
-                return updatedGame;
-            });
+            setChampionshipGame(prev => ({ ...prev, [field]: value }));
+            markGameForPersistence(gameId);
         } else {
             setPreliminaryGames(prevGames => {
                 const newGames = prevGames.map(game =>
@@ -176,12 +217,8 @@ export function useTournamentState({ initialTeams, initialGames }: UseTournament
         isChampionship = false
     ) => {
         if (isChampionship) {
-            setChampionshipGame(prev => {
-                const updatedGame = updateGameInning(prev, inningIndex, teamIndex, value);
-                checkChampionshipWinner(updatedGame);
-                markGameForPersistence(gameId);
-                return updatedGame;
-            });
+            setChampionshipGame(prev => updateGameInning(prev, inningIndex, teamIndex, value));
+            markGameForPersistence(gameId);
         } else {
             setPreliminaryGames(prevGames => {
                 const newGames = prevGames.map(game =>
@@ -276,24 +313,6 @@ export function useTournamentState({ initialTeams, initialGames }: UseTournament
         return result;
     }, [getAuthToken]);
 
-    const checkChampionshipWinner = useCallback((finalGame: Game) => {
-        const { team1Id, team2Id, score1, score2 } = finalGame;
-        if (score1 !== "" && score2 !== "" && score1 !== score2) {
-            const s1 = parseInt(score1);
-            const s2 = parseInt(score2);
-            const winnerId = s1 > s2 ? team1Id : team2Id;
-
-            const winner = teams.find(t => String(t.id) === winnerId);
-            if (winner) {
-                setChampion(winner.name);
-                setShowConfetti(true);
-                toast({
-                    title: "¡Campeón Definido!",
-                    description: `El equipo campeón es ${winner.name}.`
-                });
-            }
-        }
-    }, [teams, toast]);
 
     const handleResetTournament = useCallback(async () => {
         console.log("[HOOK] handleResetTournament triggered");

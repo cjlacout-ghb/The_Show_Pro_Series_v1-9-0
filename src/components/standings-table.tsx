@@ -25,15 +25,17 @@ import { TieBreakRulesDialog } from "./TieBreakRulesDialog";
 type StandingsTableProps = {
   standings: Standing[];
   teams: Team[];
+  champion?: string | null;
   onNavigate?: () => void;
 };
 
 export default function StandingsTable({
   standings,
   teams,
+  champion,
   onNavigate
 }: StandingsTableProps) {
-  const tableColumns = ["POS", "TEAM", "W", "L", "RS", "RA", "PCT", "GB"];
+  const tableColumns = ["POS", "TEAM", "G", "W", "L", "RS", "RA", "PCT", "GB"];
 
   const getTeamName = (teamId: number) => {
     return teams.find((t) => t.id === teamId)?.name || "Unknown Team";
@@ -57,12 +59,12 @@ export default function StandingsTable({
       <CardHeader className="border-b border-primary/5 bg-primary/5">
         <div className="flex justify-between items-center">
           <CardTitle className="text-2xl font-black uppercase tracking-tighter flex items-center gap-2">
-            <span className="text-primary">📊</span> Tabla de Posiciones
+            <span className="text-primary">📊</span> Tabla de Posiciones - Ronda Inicial
           </CardTitle>
           <div className="h-2 w-2 rounded-full bg-primary animate-pulse" />
         </div>
         <CardDescription className="text-xs uppercase tracking-wider font-medium opacity-70">
-          Actualización en tiempo real • Ronda Inicial
+          Actualización en tiempo real
         </CardDescription>
       </CardHeader>
       <CardContent className="p-0">
@@ -113,6 +115,9 @@ export default function StandingsTable({
                         )}
                       </div>
                     </TableCell>
+                    <TableCell className="text-center font-bold text-sm text-primary/60">
+                      {standing.w + standing.l}
+                    </TableCell>
                     <TableCell className="text-center font-bold text-sm">{standing.w}</TableCell>
                     <TableCell className="text-center font-bold text-sm text-muted-foreground">{standing.l}</TableCell>
                     <TableCell className="text-center text-sm font-medium">{standing.rs}</TableCell>
@@ -129,6 +134,31 @@ export default function StandingsTable({
             </TableBody>
           </Table>
         </div>
+
+        {champion && (
+          <div className="relative overflow-hidden group border-t border-white/20">
+            {/* Solid Golden Gradient Background */}
+            <div className="absolute inset-0 bg-gradient-to-r from-amber-600 via-yellow-400 to-amber-600 opacity-95" />
+
+            <div className="relative py-6 px-4 flex flex-col items-center justify-center gap-3 text-center backdrop-blur-sm">
+              {/* Decorative Trophy Icons and Team Name */}
+              <div className="flex items-center gap-6">
+                <span className="text-2xl drop-shadow-lg">🏆</span>
+                <span className="text-zinc-950 text-2xl md:text-3xl font-black uppercase tracking-tighter drop-shadow-sm">
+                  {champion}
+                </span>
+                <span className="text-2xl drop-shadow-lg">🏆</span>
+              </div>
+
+              <div className="flex flex-col items-center gap-1">
+                <h3 className="text-zinc-950 text-[11px] md:text-xs font-black uppercase tracking-[0.3em] drop-shadow-sm whitespace-nowrap">
+                  CAMPEÓN DEL TORNEO THE SHOW-PRO SERIES
+                </h3>
+                <div className="h-0.5 w-full max-w-[200px] bg-zinc-950/20" />
+              </div>
+            </div>
+          </div>
+        )}
       </CardContent>
       <CardFooter className="flex flex-col items-start gap-4 p-6 border-t border-primary/5 bg-primary/[0.01]">
         {hasTies && <TieBreakRulesDialog />}
