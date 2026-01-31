@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import type { Team, Game, Standing, BattingStat, PitchingStat } from "@/lib/types";
-import { updateGame, saveBattingStat, savePitchingStat, resetTournamentScores, importGameStatsFromTxt } from "@/app/actions";
+import { updateGame, saveBattingStat, savePitchingStat, resetTournamentScores, importGameStatsFromTxt, resetGameData } from "@/app/actions";
 import { useToast } from "@/hooks/use-toast";
 import { useStandings } from "./useStandings";
 import { updateGameInning, swapGameTeams, ensureGameInnings } from "@/lib/innings-utils";
@@ -382,7 +382,54 @@ export function useTournamentState({ initialTeams, initialGames, isAdmin }: UseT
             toast({
                 variant: "destructive",
                 title: "Error de Operación",
-                description: error.message || "No se pudo comunicar con el servidor para reiniciar."
+                description: error.message || "No se pudo comunicar con el servidor."
+            });
+        }
+    }, [toast, getAuthToken]);
+
+    const handleResetGame = useCallback(async (gameId: number) => {
+        console.log(`[HOOK] handleResetGame triggered for game ${gameId}`);
+
+        const { dismiss: dismissLoading } = toast({
+            title: "Borrando Resultados",
+            description: "Conectando con el servidor para limpiar datos del juego...",
+        });
+
+        try {
+            const tokenPromise = getAuthToken();
+            const timeoutPromise = new Promise((_, reject) =>
+                setTimeout(() => reject(new Error("Tiempo de espera agotado.")), 8000)
+            );
+
+            const token = await Promise.race([tokenPromise, timeoutPromise]) as string;
+            const result = await resetGameData(gameId, token || undefined);
+
+            dismissLoading();
+
+            if (result.success) {
+                toast({
+                    title: "Juego Borrado",
+                    description: "Los resultados y estadísticas del juego se han eliminado correctamente. Recargando..."
+                });
+
+                // Full reload as requested to ensure consistency
+                setTimeout(() => {
+                    window.location.reload();
+                }, 1500);
+            } else {
+                toast({
+                    variant: "destructive",
+                    title: "Error al Borrar",
+                    description: result.error || "No se pudo borrar la información del juego."
+                });
+            }
+        } catch (error: any) {
+            dismissLoading();
+            console.error("Reset game error:", error);
+            toast({
+                variant: "destructive",
+                title: "Error de Operación",
+                description: error.message || "No se pudo comunicar con el servidor."
             });
         }
     }, [toast, getAuthToken]);
@@ -401,6 +448,7 @@ export function useTournamentState({ initialTeams, initialGames, isAdmin }: UseT
         handleSavePitching,
         handleSwapTeams,
         handleImportStats,
-        handleResetTournament
+        handleResetTournament,
+        handleResetGame
     };
 }

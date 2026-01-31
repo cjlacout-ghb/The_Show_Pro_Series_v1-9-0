@@ -18,8 +18,9 @@ interface LeaderBoardProps {
 }
 
 export default function LeaderBoard({ games, teams }: LeaderBoardProps) {
-    const teamGamesPlayed = calculateTeamGamesPlayed(games, teams);
-    const playerStats = aggregatePlayerStats(games, teams);
+    const preliminaryGames = games.filter(g => !g.isChampionship && g.id !== 16);
+    const teamGamesPlayed = calculateTeamGamesPlayed(preliminaryGames, teams);
+    const playerStats = aggregatePlayerStats(preliminaryGames, teams);
 
     const battingLeaders = getBattingLeaders(playerStats, teamGamesPlayed);
     const pitchingLeaders = getPitchingLeaders(playerStats, teamGamesPlayed);

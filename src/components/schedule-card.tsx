@@ -17,7 +17,7 @@ import { Fragment } from "react";
 import { Separator } from "./ui/separator";
 import { Button } from "./ui/button";
 import { cn } from "@/lib/utils";
-import { ArrowUpDown } from "lucide-react";
+import { ArrowUpDown, Trash2 } from "lucide-react";
 
 type ScheduleCardProps = {
   title: string;
@@ -29,6 +29,7 @@ type ScheduleCardProps = {
   onSavePitching: (gameId: number, playerId: number, stats: Partial<PitchingStat>) => Promise<void>;
   onSwapTeams: (gameId: number) => void;
   onImportStats?: (gameId: number, txt: string) => Promise<any>;
+  onResetGame?: (gameId: number) => Promise<void>;
   onNavigate?: () => void;
   onNavigateToStandings?: () => void;
   footer?: React.ReactNode;
@@ -46,6 +47,7 @@ export default function ScheduleCard({
   onSavePitching,
   onSwapTeams,
   onImportStats,
+  onResetGame,
   onNavigate,
   onNavigateToStandings,
   footer,
@@ -293,17 +295,34 @@ export default function ScheduleCard({
                 </div>
 
                 <div className="flex flex-col sm:flex-row justify-between items-center gap-4 pt-4">
-                  <BoxScoreDialog
-                    game={game}
-                    teams={teams}
-                    onSaveBatting={(playerId, stats) => onSaveBatting(game.id, playerId, stats)}
-                    onSavePitching={(playerId, stats) => onSavePitching(game.id, playerId, stats)}
-                    isAdmin={isAdmin}
-                    onImportStats={async (txt) => {
-                      if (!isAdmin || !onImportStats) return;
-                      await onImportStats(game.id, txt);
-                    }}
-                  />
+                  <div className="flex gap-3 items-center">
+                    <BoxScoreDialog
+                      game={game}
+                      teams={teams}
+                      onSaveBatting={(playerId, stats) => onSaveBatting(game.id, playerId, stats)}
+                      onSavePitching={(playerId, stats) => onSavePitching(game.id, playerId, stats)}
+                      isAdmin={isAdmin}
+                      onImportStats={async (txt) => {
+                        if (!isAdmin || !onImportStats) return;
+                        await onImportStats(game.id, txt);
+                      }}
+                    />
+
+                    {isAdmin && onResetGame && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          onResetGame(game.id);
+                        }}
+                        className="text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-destructive hover:bg-destructive/10 gap-2 transition-all h-9 px-4 rounded-lg border border-primary/5 bg-background/50"
+                        title="Borrar resultados del juego"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                        Borrar
+                      </Button>
+                    )}
+                  </div>
 
                   <div className="flex gap-2">
                     {onNavigateToStandings && (

@@ -481,6 +481,62 @@ export async function resetTournamentScores(token?: string) {
     }
 }
 
+export async function resetGameData(gameId: number, token?: string) {
+    try {
+        const client = getRequestClient(token);
+        await verifyAdmin(client, token);
+        console.log(`[ACTION] Resetting data for game ${gameId}...`);
+
+        // 1. Delete batting stats for this game
+        const { error: bError } = await client
+            .from('batting_stats')
+            .delete()
+            .eq('game_id', gameId);
+
+        if (bError) {
+            console.error(`Error clearing batting stats for game ${gameId}:`, bError);
+            throw new Error(`Error en batting_stats: ${bError.message}`);
+        }
+
+        // 2. Delete pitching stats for this game
+        const { error: pError } = await client
+            .from('pitching_stats')
+            .delete()
+            .eq('game_id', gameId);
+
+        if (pError) {
+            console.error(`Error clearing pitching stats for game ${gameId}:`, pError);
+            throw new Error(`Error en pitching_stats: ${pError.message}`);
+        }
+
+        // 3. Reset game results
+        const { error: gError } = await client
+            .from('games')
+            .update({
+                score1: null,
+                score2: null,
+                hits1: null,
+                hits2: null,
+                errors1: null,
+                errors2: null,
+                innings: []
+            })
+            .eq('id', gameId);
+
+        if (gError) {
+            console.error(`Error resetting results for game ${gameId}:`, gError);
+            throw new Error(`Error al resetear juego: ${gError.message}`);
+        }
+
+        console.log(`Successfully reset data for game ${gameId}.`);
+        revalidatePath('/');
+        return { success: true };
+    } catch (err: any) {
+        console.error(`Reset action failed for game ${gameId}:`, err);
+        return { success: false, error: err.message || 'Error desconocido al reiniciar el juego' };
+    }
+}
+
 export async function importGameStatsFromTxt(gameId: number, txtData: string, token?: string) {
     console.log(`[ACTION] Importing stats for game ${gameId}`);
     const client = getRequestClient(token);
