@@ -11,6 +11,9 @@ export type BattingStat = {
   homeRuns: number;
   rbi: number;
   walks: number;
+  hitByPitch: number;
+  sacHits: number;
+  sacFlies: number;
   strikeOuts: number;
   stolenBases: number;
 };
@@ -75,4 +78,14 @@ export type Standing = {
   ra: number;
   pct: number;
   gb: number;
+};
+
+export type Award = {
+  id?: number;
+  category: 'ronda_inicial' | 'partido_final';
+  title: string;
+  playerName: string;
+  teamName: string;
+  description: string;
+  updated_at?: string;
 };

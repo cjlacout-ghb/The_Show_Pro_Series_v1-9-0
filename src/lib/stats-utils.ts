@@ -19,6 +19,11 @@ export interface BattingLeader extends Player {
     ab: number;
     h: number;
     bb: number;
+    hbp: number;
+    bbHbp: string;
+    sh: number;
+    sf: number;
+    sac: string;
     hr: number;
     rbi: number;
     r: number;
@@ -34,6 +39,7 @@ export interface PitchingLeader extends Player {
     so: number;
     ip: number;
     w: number;
+    l: number;
 }
 
 /**
@@ -54,6 +60,9 @@ export function initializePlayerStats(teams: Team[]): Record<number, PlayerStats
                     rbi: 0,
                     homeRuns: 0,
                     walks: 0,
+                    hitByPitch: 0,
+                    sacHits: 0,
+                    sacFlies: 0,
                     strikeOuts: 0,
                     gamesPlayed: 0
                 },
@@ -116,6 +125,9 @@ export function aggregatePlayerStats(
                     ps.batting.rbi = (ps.batting.rbi || 0) + (stat.rbi || 0);
                     ps.batting.homeRuns = (ps.batting.homeRuns || 0) + (stat.homeRuns || 0);
                     ps.batting.walks = (ps.batting.walks || 0) + (stat.walks || 0);
+                    ps.batting.hitByPitch = (ps.batting.hitByPitch || 0) + (stat.hitByPitch || 0);
+                    ps.batting.sacHits = (ps.batting.sacHits || 0) + (stat.sacHits || 0);
+                    ps.batting.sacFlies = (ps.batting.sacFlies || 0) + (stat.sacFlies || 0);
                     ps.batting.strikeOuts = (ps.batting.strikeOuts || 0) + (stat.strikeOuts || 0);
                     ps.batting.gamesPlayed!++;
                 }
@@ -173,6 +185,11 @@ export function getBattingLeaders(
                 ab: ab,
                 h: h,
                 bb: ps.batting.walks || 0,
+                hbp: ps.batting.hitByPitch || 0,
+                bbHbp: `${(ps.batting.walks || 0) + (ps.batting.hitByPitch || 0)}`,
+                sh: ps.batting.sacHits || 0,
+                sf: ps.batting.sacFlies || 0,
+                sac: `${(ps.batting.sacHits || 0) + (ps.batting.sacFlies || 0)}`,
                 hr: ps.batting.homeRuns || 0,
                 rbi: ps.batting.rbi || 0,
                 r: ps.batting.runs || 0
@@ -208,9 +225,10 @@ export function getPitchingLeaders(
                 er: er,
                 so: ps.pitching.strikeOuts || 0,
                 ip: ip,
-                w: ps.pitching.wins || 0
+                w: ps.pitching.wins || 0,
+                l: ps.pitching.losses || 0
             };
         })
-        .sort((a, b) => a.era - b.era || b.so - a.so)
+        .sort((a, b) => b.w - a.w || a.era - b.era || b.so - a.so)
         .slice(0, limit);
 }

@@ -27,7 +27,7 @@ export default function TournamentHeader({ visible = true }: TournamentHeaderPro
                     TORNEO INTERNACIONAL DE SOFTBOL MASCULINO
                 </h2>
                 <p className="text-lg md:text-xl text-muted-foreground font-semibold tracking-wide md:pl-4">
-                    Paraná, ER - Argentina | Marzo, 2026
+                    Paraná, ER - Argentina | 18-21 marzo 2026
                 </p>
             </div>
         </header>

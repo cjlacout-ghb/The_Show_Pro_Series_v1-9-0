@@ -40,16 +40,9 @@ export default function TournamentFooter({ onReset, isAdmin = false }: Tournamen
                 <div className="flex flex-col items-center gap-4">
                     <div className="flex items-center gap-4">
                         <div className="w-12 h-px bg-primary/20" />
-                        <div className="group relative cursor-default">
-                            <p className="text-primary/40 uppercase tracking-[0.4em] text-[10px] font-black transition-colors duration-300 group-hover:text-primary/60">
-                                DEV BY C|J|L
-                            </p>
-                            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-max opacity-0 translate-y-1 invisible group-hover:opacity-100 group-hover:visible group-hover:translate-y-0 transition-all duration-300 ease-out pointer-events-none">
-                                <div className="bg-zinc-950/90 backdrop-blur-sm border border-white/10 px-3 py-1.5 rounded text-[10px] font-medium tracking-wider text-primary/90 shadow-2xl">
-                                    Cristian Lacout - WBSC Int'l TC
-                                </div>
-                            </div>
-                        </div>
+                        <p className="text-primary/60 uppercase tracking-[0.2em] text-[11px] font-black italic">
+                            desarrollado por Cristian Lacout
+                        </p>
                         <div className="w-12 h-px bg-primary/20" />
                     </div>
 

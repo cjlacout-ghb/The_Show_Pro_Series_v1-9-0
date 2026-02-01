@@ -104,8 +104,8 @@ export default function AdminAuthPanel({ user, isAdmin, showAdminPanel, onLogout
                             <Lock className="w-5 h-5 text-primary" />
                             Iniciar Sesión
                         </DialogTitle>
-                        <DialogDescription className="text-xs uppercase tracking-widest font-bold text-muted-foreground/60">
-                            Solo personal autorizado de The Show Pro Series
+                        <DialogDescription className="text-xs uppercase tracking-widest font-bold text-muted-foreground/60 leading-relaxed">
+                            Solo personal autorizado<br />The Show Pro Series
                         </DialogDescription>
                     </DialogHeader>
 

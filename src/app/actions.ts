@@ -603,6 +603,9 @@ export async function importGameStatsFromTxt(gameId: number, txtData: string, to
                     homeRuns: b.hr,
                     rbi: b.rbi,
                     walks: b.bb,
+                    hitByPitch: b.hbp,
+                    sacHits: b.sh,
+                    sacFlies: b.sf,
                     strikeOuts: b.so,
                     stolenBases: b.sb
                 };

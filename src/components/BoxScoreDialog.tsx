@@ -234,7 +234,7 @@ export default function BoxScoreDialog({ game, teams, onSaveBatting, onSavePitch
                                                                     </Button>
                                                                 )}
                                                             </div>
-                                                            <div className="grid grid-cols-4 sm:grid-cols-8 gap-2">
+                                                            <div className="grid grid-cols-4 sm:grid-cols-11 gap-2">
                                                                 <StatInput label="PA" value={getBattingStat(playerId, "plateAppearances")} onChange={(v: string) => handleBattingChange(playerId, "plateAppearances", v)} />
                                                                 <StatInput label="AB" value={getBattingStat(playerId, "atBats")} onChange={(v: string) => handleBattingChange(playerId, "atBats", v)} />
                                                                 <StatInput label="H" value={getBattingStat(playerId, "hits")} onChange={(v: string) => handleBattingChange(playerId, "hits", v)} />
@@ -242,6 +242,9 @@ export default function BoxScoreDialog({ game, teams, onSaveBatting, onSavePitch
                                                                 <StatInput label="RBI" value={getBattingStat(playerId, "rbi")} onChange={(v: string) => handleBattingChange(playerId, "rbi", v)} />
                                                                 <StatInput label="HR" value={getBattingStat(playerId, "homeRuns")} onChange={(v: string) => handleBattingChange(playerId, "homeRuns", v)} />
                                                                 <StatInput label="BB" value={getBattingStat(playerId, "walks")} onChange={(v: string) => handleBattingChange(playerId, "walks", v)} />
+                                                                <StatInput label="HBP" value={getBattingStat(playerId, "hitByPitch")} onChange={(v: string) => handleBattingChange(playerId, "hitByPitch", v)} />
+                                                                <StatInput label="SH" value={getBattingStat(playerId, "sacHits")} onChange={(v: string) => handleBattingChange(playerId, "sacHits", v)} />
+                                                                <StatInput label="SF" value={getBattingStat(playerId, "sacFlies")} onChange={(v: string) => handleBattingChange(playerId, "sacFlies", v)} />
                                                                 <StatInput label="SO" value={getBattingStat(playerId, "strikeOuts")} onChange={(v: string) => handleBattingChange(playerId, "strikeOuts", v)} />
                                                             </div>
                                                         </div>
@@ -272,7 +275,7 @@ export default function BoxScoreDialog({ game, teams, onSaveBatting, onSavePitch
                                                                     </Button>
                                                                 )}
                                                             </div>
-                                                            <div className="grid grid-cols-4 sm:grid-cols-8 gap-2">
+                                                            <div className="grid grid-cols-4 sm:grid-cols-11 gap-2">
                                                                 <StatInput label="PA" value={getBattingStat(playerId, "plateAppearances")} onChange={(v: string) => handleBattingChange(playerId, "plateAppearances", v)} />
                                                                 <StatInput label="AB" value={getBattingStat(playerId, "atBats")} onChange={(v: string) => handleBattingChange(playerId, "atBats", v)} />
                                                                 <StatInput label="H" value={getBattingStat(playerId, "hits")} onChange={(v: string) => handleBattingChange(playerId, "hits", v)} />
@@ -280,6 +283,9 @@ export default function BoxScoreDialog({ game, teams, onSaveBatting, onSavePitch
                                                                 <StatInput label="RBI" value={getBattingStat(playerId, "rbi")} onChange={(v: string) => handleBattingChange(playerId, "rbi", v)} />
                                                                 <StatInput label="HR" value={getBattingStat(playerId, "homeRuns")} onChange={(v: string) => handleBattingChange(playerId, "homeRuns", v)} />
                                                                 <StatInput label="BB" value={getBattingStat(playerId, "walks")} onChange={(v: string) => handleBattingChange(playerId, "walks", v)} />
+                                                                <StatInput label="HBP" value={getBattingStat(playerId, "hitByPitch")} onChange={(v: string) => handleBattingChange(playerId, "hitByPitch", v)} />
+                                                                <StatInput label="SH" value={getBattingStat(playerId, "sacHits")} onChange={(v: string) => handleBattingChange(playerId, "sacHits", v)} />
+                                                                <StatInput label="SF" value={getBattingStat(playerId, "sacFlies")} onChange={(v: string) => handleBattingChange(playerId, "sacFlies", v)} />
                                                                 <StatInput label="SO" value={getBattingStat(playerId, "strikeOuts")} onChange={(v: string) => handleBattingChange(playerId, "strikeOuts", v)} />
                                                             </div>
                                                         </div>

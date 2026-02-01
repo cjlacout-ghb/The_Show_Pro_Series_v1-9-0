@@ -52,8 +52,10 @@ export default function LeaderBoardTable<T extends LeaderRowData>({
                             <TableHead
                                 key={String(col.key)}
                                 className={cn(
-                                    "text-[10px] font-black uppercase tracking-widest text-primary/60 font-mono",
+                                    "text-[10px] font-black uppercase tracking-widest text-primary/60 font-mono py-4 px-2 whitespace-nowrap",
                                     col.key === 'rank' && "w-12 text-center",
+                                    col.key === 'name' && "text-left",
+                                    col.key !== 'rank' && col.key !== 'name' && "w-20 min-w-20 text-center",
                                     col.align === 'right' && "text-right",
                                     col.align === 'center' && "text-center"
                                 )}
@@ -95,11 +97,12 @@ export default function LeaderBoardTable<T extends LeaderRowData>({
                                     <TableCell
                                         key={String(col.key)}
                                         className={cn(
-                                            "font-mono tabular-nums",
+                                            "font-mono tabular-nums px-2",
+                                            col.key !== 'rank' && col.key !== 'name' && "w-20 min-w-20 text-center",
                                             col.align === 'right' && "text-right",
                                             col.align === 'center' && "text-center",
-                                            col.isPrimary && "font-black text-primary text-lg",
-                                            !col.isPrimary && "font-bold text-sm"
+                                            col.isPrimary && "font-black text-primary text-base md:text-lg",
+                                            !col.isPrimary && "font-bold text-xs md:text-sm"
                                         )}
                                     >
                                         {formattedValue}

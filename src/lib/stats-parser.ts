@@ -25,6 +25,9 @@ export interface ParsedBatter {
     hr: number;
     rbi: number;
     bb: number;
+    hbp: number;
+    sh: number;
+    sf: number;
     so: number;
     sb: number;
 }
@@ -80,9 +83,9 @@ export function parseGameStats(text: string): ParsedGameData {
             if (currentSection === 'VISITOR_BATTING' || currentSection === 'LOCAL_BATTING') {
                 const parts = line.split(',').map(s => s.trim());
                 if (parts.length >= 13) {
-                    // Batter has 13 standard columns. If more, assume the name contains commas.
-                    // Columns: # [0], NAME [1...N-11], STATS [N-11 ... N-1]
-                    const statCount = 11; // PA, AB, R, H, 2B, 3B, HR, RBI, BB, SO, SB
+                    // Batter has standard columns. If more, assume the name contains commas.
+                    // Columns: # [0], NAME [1...N-14], STATS [N-14 ... N-1]
+                    const statCount = 14; // PA, AB, R, H, 2B, 3B, HR, RBI, BB, HBP, SH, SF, SO, SB
                     const nameEndIndex = parts.length - statCount;
                     const name = parts.slice(1, nameEndIndex).join(', ');
                     const stats = parts.slice(nameEndIndex);
@@ -99,8 +102,11 @@ export function parseGameStats(text: string): ParsedGameData {
                         hr: parseInt(stats[6]),
                         rbi: parseInt(stats[7]),
                         bb: parseInt(stats[8]),
-                        so: parseInt(stats[9]),
-                        sb: parseInt(stats[10]),
+                        hbp: parseInt(stats[9]),
+                        sh: parseInt(stats[10]),
+                        sf: parseInt(stats[11]),
+                        so: parseInt(stats[12]),
+                        sb: parseInt(stats[13]),
                     };
 
                     if (currentSection === 'VISITOR_BATTING') {

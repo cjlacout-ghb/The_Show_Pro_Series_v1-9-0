@@ -152,7 +152,7 @@ export default function TournamentManager({ initialTeams, initialGames }: Tourna
                                         </CardTitle>
                                     </CardHeader>
                                     <CardContent className="p-6">
-                                        <LeaderBoard games={[...preliminaryGames, championshipGame]} teams={teams} />
+                                        <LeaderBoard games={[...preliminaryGames, championshipGame]} teams={teams} isAdmin={isAdmin} />
                                     </CardContent>
                                     <CardFooter className="flex justify-end p-6 border-t border-primary/5 bg-primary/[0.01]">
                                         <Button
