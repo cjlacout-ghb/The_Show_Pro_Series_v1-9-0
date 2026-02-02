@@ -33,10 +33,6 @@ export async function getAwards() {
         console.error("Error fetching awards:", error);
         return [];
     }
-    if (error) {
-        console.error("Error fetching awards:", error);
-        return [];
-    }
     console.log(`[getAwards] Fetched ${data.length} awards from DB`);
     data.forEach((a: any) => console.log(` - Found: "${a.title}" (${a.category})`));
 
@@ -81,156 +77,158 @@ export async function importAwardsFromTxt(txtData: string, token?: string) {
     const client = getRequestClient(token);
     await verifyAdmin(client);
 
-    const lines = txtData.split('\n');
+    // Normalize line endings and keys
+    const lines = txtData
+        .replace(/\r\n/g, '\n')
+        .split('\n')
+        .map(l => l.trim())
+        .filter(l => l.length > 0);
+
     let currentCategory: 'ronda_inicial' | 'partido_final' = 'ronda_inicial';
     const awards: any[] = [];
 
-    let i = 0;
-    while (i < lines.length) {
-        const line = lines[i].trim();
+    // Key Patterns
+    const KEY_BATEADOR = "BATEADOR";
+    const KEY_LANZADOR = "LANZADOR";
+    const KEY_MVP = "MVP";
+    const KEY_ALL_STAR = "ALL_THE_SHOW_TEAM"; // Matches user input
+    const KEY_EQUIPO_IDEAL = "EQUIPO IDEAL";
 
-        if (line.startsWith('SECTION:')) {
-            const sectionName = line.replace('SECTION:', '').trim().toUpperCase();
-            if (sectionName.includes('PARTIDO_FINAL')) {
-                currentCategory = 'partido_final';
-            } else {
-                currentCategory = 'ronda_inicial';
-            }
-        } else if (line.startsWith('PREMIO:')) {
-            const rawTitle = line.replace('PREMIO:', '').trim();
-            let canonicalTitle = "";
-            let isTeam = false;
+    console.log(`[IMPORT] Starting Import of ${lines.length} lines.`);
 
-            if (rawTitle.toUpperCase().includes('BATEADOR')) canonicalTitle = "MEJOR BATEADOR DEL TORNEO";
-            else if (rawTitle.toUpperCase().includes('ALL_THE_SHOW_TEAM') || rawTitle.toUpperCase().includes('EQUIPO IDEAL')) {
-                canonicalTitle = "ALL THE SHOW TEAM";
-                isTeam = true;
-            }
-            else if (rawTitle.toUpperCase().includes('LANZADOR')) canonicalTitle = "LANZADOR DESTACADO";
-            else if (rawTitle.toUpperCase().includes('MVP')) canonicalTitle = "JUGADOR MVP";
+    for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        const upperLine = line.toUpperCase();
 
-            if (canonicalTitle) {
-                console.log(`[IMPORT] Match found: ${canonicalTitle} (Team: ${isTeam})`);
-                if (isTeam) {
-                    console.log("[IMPORT] Starting Team Parsing...");
-                    let players: string[] = [];
-                    i++;
-                    while (i < lines.length) {
-                        const rawLine = lines[i];
-                        const cleanLine = rawLine?.trim() || "";
+        // 1. Context Switching (Sections that are NOT awards)
+        if (upperLine.includes('PREMIOS_PARTIDO_FINAL') || upperLine.includes('JUEGO 16')) {
+            currentCategory = 'partido_final';
+            console.log(`[IMPORT] Context switched to: ${currentCategory}`);
+            continue;
+        }
+        if (upperLine.includes('PREMIOS_RONDA_INICIAL')) {
+            currentCategory = 'ronda_inicial';
+            console.log(`[IMPORT] Context switched to: ${currentCategory}`);
+            continue;
+        }
 
-                        // Stop if we hit a new section or award, but ONLY if it's not a player line
-                        if (cleanLine.startsWith('PREMIO:') || cleanLine.startsWith('SECTION:')) {
-                            console.log(`[IMPORT] Stopping team parse at: ${cleanLine}`);
-                            break;
-                        }
+        // 2. Identifying Awards
+        let canonicalTitle = "";
+        let isTeam = false;
 
-                        if (cleanLine && !cleanLine.startsWith('//') && !cleanLine.startsWith('GANADOR:') && !cleanLine.startsWith('EQUIPO:') && !cleanLine.startsWith('ESTADÍSTICAS:')) {
-                            console.log(`[IMPORT] Adding player: ${cleanLine}`);
-                            players.push(cleanLine);
-                        }
-                        i++;
+        // Check for Team Award Trigger (matches exact keywords in line)
+        if (upperLine.includes(KEY_ALL_STAR) || upperLine.includes(KEY_EQUIPO_IDEAL)) {
+            canonicalTitle = "ALL THE SHOW TEAM";
+            isTeam = true;
+        }
+        // Check for Individual Awards (Must start with PREMIO: to avoid false positives)
+        else if (upperLine.startsWith('PREMIO:')) {
+            if (upperLine.includes(KEY_BATEADOR)) canonicalTitle = "MEJOR BATEADOR DEL TORNEO";
+            else if (upperLine.includes(KEY_LANZADOR)) canonicalTitle = "LANZADOR DESTACADO";
+            else if (upperLine.includes(KEY_MVP)) canonicalTitle = "JUGADOR MVP";
+        }
+
+        // 3. Process Award if identified
+        if (canonicalTitle) {
+            console.log(`[IMPORT] Found Award Header: ${canonicalTitle} (Line: ${line})`);
+
+            if (isTeam) {
+                const players: string[] = [];
+                let j = i + 1;
+                while (j < lines.length) {
+                    const nextLine = lines[j];
+                    const nextUpper = nextLine.toUpperCase();
+
+                    // Stop conditions: Next Section or Next Award Header
+                    if (nextUpper.startsWith('SECTION:') || nextUpper.startsWith('PREMIO:')) {
+                        break;
                     }
-                    i--; // Step back so the outer loop processes the SECTION/PREMIO line next
 
-                    const teamDesc = players.join('\n');
-                    console.log(`[IMPORT] Finished Team Parse. Total players: ${players.length}`);
-                    console.log(`[IMPORT] Team Description Payload (First 20 chars): ${teamDesc.substring(0, 20)}...`);
+                    // Filter noise
+                    if (!nextUpper.startsWith('//') && nextUpper.length > 2) {
+                        players.push(nextLine);
+                    }
+                    j++;
+                }
 
+                if (players.length > 0) {
                     awards.push({
                         category: currentCategory,
                         title: canonicalTitle,
                         player_name: "EQUIPO IDEAL",
                         team_name: "SELECCIÓN DEL TORNEO",
-                        description: teamDesc,
+                        description: players.join('\n'),
                         updated_at: new Date().toISOString()
                     });
+                    console.log(`[IMPORT] Captured ${players.length} players for Team Award.`);
+                    i = j - 1; // Advance main loop
                 } else {
-                    // ... existing individual logic ...
-                    let playerName = "";
-                    let teamName = "";
-                    let description = "";
-                    i++;
-                    while (i < lines.length) {
-                        const rawLine = lines[i];
-                        const cleanLine = rawLine?.trim() || "";
-
-                        if (cleanLine.startsWith('PREMIO:') || cleanLine.startsWith('SECTION:')) {
-                            break;
-                        }
-
-                        if (cleanLine.startsWith('GANADOR:')) playerName = cleanLine.replace('GANADOR:', '').trim();
-                        else if (cleanLine.startsWith('EQUIPO:')) teamName = cleanLine.replace('EQUIPO:', '').trim();
-                        else if (cleanLine.startsWith('ESTADÍSTICAS:')) description = cleanLine.replace('ESTADÍSTICAS:', '').trim();
-                        i++;
-                    }
-                    i--;
-                    console.log(`[IMPORT] Parsed award: ${canonicalTitle} for ${playerName}`);
-                    awards.push({
-                        category: currentCategory,
-                        title: canonicalTitle,
-                        player_name: playerName,
-                        team_name: teamName,
-                        description: description,
-                        updated_at: new Date().toISOString()
-                    });
+                    console.warn(`[IMPORT] Team award header found but no players captured.`);
                 }
-            } else {
-                console.warn(`[IMPORT] No canonical title match for: ${rawTitle}`);
             }
-        }
-        i++;
-    }
+            else {
+                // Individual Award Parsing
+                let playerName = "";
+                let teamName = "";
+                let description = "";
 
-    console.log(`[IMPORT] Preparing to upsert ${awards.length} awards..`);
+                let j = i + 1;
+                while (j < lines.length) {
+                    const nextLine = lines[j];
+                    const nextUpper = nextLine.toUpperCase();
 
-    // --- POST-PARSE VERIFICATION & FALLBACK ---
+                    if (nextUpper.startsWith('SECTION:') || nextUpper.startsWith('PREMIO:')) {
+                        break;
+                    }
 
-    // Check if ALL THE SHOW TEAM was captured
-    const hasAllStar = awards.some(a => a.title === "ALL THE SHOW TEAM");
+                    if (nextUpper.startsWith('GANADOR:')) playerName = nextLine.substring(8).trim();
+                    else if (nextUpper.startsWith('EQUIPO:')) teamName = nextLine.substring(7).trim();
+                    else if (nextUpper.startsWith('ESTADÍSTICAS:')) description = nextLine.substring(13).trim();
 
-    if (!hasAllStar) {
-        console.warn("[IMPORT] 'ALL THE SHOW TEAM' missing from standard parse. Attempting Regex Fallback...");
+                    j++;
+                }
 
-        // Regex to match the section between the Header and the next Section/Premio
-        // identifying "PREMIO: ALL_THE_SHOW_TEAM" up to the next "SECTION:" or "PREMIO:"
-        const allStarRegex = /PREMIO:\s*ALL_THE_SHOW_TEAM[\s\S]*?(?=SECTION:|PREMIO:|$)/i;
-        const match = txtData.match(allStarRegex);
-
-        if (match) {
-            const block = match[0];
-            const lines = block.split('\n')
-                .map(l => l.trim())
-                .filter(l => l && !l.startsWith('PREMIO:') && !l.startsWith('//') && !l.includes('GANADOR:') && !l.includes('EQUIPO:'));
-
-            if (lines.length > 0) {
-                console.log(`[IMPORT] Regex Fallback found ${lines.length} players.`);
                 awards.push({
-                    category: 'ronda_inicial',
-                    title: 'ALL THE SHOW TEAM',
-                    player_name: "EQUIPO IDEAL",
-                    team_name: "SELECCIÓN DEL TORNEO",
-                    description: lines.join('\n'),
+                    category: currentCategory,
+                    title: canonicalTitle,
+                    player_name: playerName || "Por Determinar",
+                    team_name: teamName || "N/A",
+                    description: description || "Sin descripción",
                     updated_at: new Date().toISOString()
                 });
+                console.log(`[IMPORT] Captured Individual Award: ${canonicalTitle} -> ${playerName}`);
+                i = j - 1;
             }
         }
     }
 
-    // Deduplicate awards array just in case
+    // Deduplicate logic
     const uniqueAwards = Array.from(new Map(awards.map(item => [item.category + item.title, item])).values());
 
-    console.log(`[IMPORT] Final Payload: ${uniqueAwards.length} awards prepared for storage.`);
+    console.log(`[IMPORT] Saving ${uniqueAwards.length} unique awards...`);
 
-    // Upsert
     for (const award of uniqueAwards) {
-        console.log(`[IMPORT] Upserting: "${award.title}" (${award.category})`);
         const { error } = await client.from('awards').upsert(award, { onConflict: 'category,title' });
         if (error) {
-            console.error(`[IMPORT ERROR] Failed to save "${award.title}":`, error.message);
+            console.error(`[IMPORT DB ERROR] ${award.title}:`, error.message);
+            throw new Error(`Error database: ${error.message}`);
         } else {
-            console.log(`[IMPORT] Success: "${award.title}"`);
+            console.log(`[IMPORT SUCCESS] Saved ${award.title}`);
         }
+    }
+
+    revalidatePath('/');
+}
+
+export async function clearAwards(token?: string) {
+    const client = getRequestClient(token);
+    await verifyAdmin(client);
+
+    const { error } = await client.from('awards').delete().neq('id', 0); // Delete all rows
+
+    if (error) {
+        console.error("Error clearing awards:", error);
+        throw new Error(error.message);
     }
 
     revalidatePath('/');

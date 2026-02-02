@@ -4,8 +4,17 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Trophy, Award as AwardIcon, Star, User, Shield, Upload } from "lucide-react";
-import { getAwards, saveAward, importAwardsFromTxt } from "@/app/awards-actions";
+import { Textarea } from "@/components/ui/textarea";
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+    DialogTrigger,
+    DialogFooter,
+} from "@/components/ui/dialog";
+import { Trophy, Award as AwardIcon, Star, User, Shield, Upload, ClipboardList, Trash2 } from "lucide-react";
+import { getAwards, saveAward, importAwardsFromTxt, clearAwards } from "@/app/awards-actions";
 import type { Award } from "@/lib/types";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/hooks/use-toast";
@@ -19,6 +28,11 @@ export default function AwardsSection({ isAdmin }: AwardsSectionProps) {
     const [loading, setLoading] = useState(true);
     const [editingId, setEditingId] = useState<number | null>(null);
     const [editForm, setEditForm] = useState<Partial<Award>>({});
+    const [isImportOpen, setIsImportOpen] = useState(false);
+    const [importText, setImportText] = useState("");
+    const [isImporting, setIsImporting] = useState(false);
+    const [isDeleting, setIsDeleting] = useState(false);
+    const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
     const { toast } = useToast();
 
     useEffect(() => {
@@ -61,23 +75,35 @@ export default function AwardsSection({ isAdmin }: AwardsSectionProps) {
         }
     };
 
-    const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (!file) return;
+    const handleImport = async () => {
+        setIsImporting(true);
+        try {
+            const { data: { session } } = await supabase.auth.getSession();
+            await importAwardsFromTxt(importText, session?.access_token);
+            toast({ title: "Premios importados con éxito" });
+            setIsImportOpen(false);
+            setImportText("");
+            loadAwards();
+        } catch (error: any) {
+            toast({ variant: "destructive", title: "Error al importar", description: error.message });
+        } finally {
+            setIsImporting(false);
+        }
+    };
 
-        const reader = new FileReader();
-        reader.onload = async (event) => {
-            const txt = event.target?.result as string;
-            try {
-                const { data: { session } } = await supabase.auth.getSession();
-                await importAwardsFromTxt(txt, session?.access_token);
-                toast({ title: "Premios importados con éxito" });
-                loadAwards();
-            } catch (error: any) {
-                toast({ variant: "destructive", title: "Error al importar", description: error.message });
-            }
-        };
-        reader.readAsText(file);
+    const handleDeleteAll = async () => {
+        setIsDeleting(true);
+        try {
+            const { data: { session } } = await supabase.auth.getSession();
+            await clearAwards(session?.access_token);
+            toast({ title: "Todos los premios han sido eliminados" });
+            setIsDeleteConfirmOpen(false);
+            loadAwards();
+        } catch (error: any) {
+            toast({ variant: "destructive", title: "Error al eliminar", description: error.message });
+        } finally {
+            setIsDeleting(false);
+        }
     };
 
     const renderAward = (category: 'ronda_inicial' | 'partido_final', title: string, defaultDesc: string) => {
@@ -190,23 +216,88 @@ export default function AwardsSection({ isAdmin }: AwardsSectionProps) {
         <div className="space-y-12 py-4">
             {isAdmin && (
                 <div className="flex flex-col items-end gap-2 pr-2">
-                    <div className="relative">
-                        <input type="file" id="import-awards" className="hidden" accept=".txt" onChange={handleImport} />
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            asChild
-                            className="bg-black/40 border-primary/40 hover:border-primary/60 hover:bg-primary/5 text-white font-black uppercase tracking-widest text-[11px] h-10 px-5 rounded-xl transition-all shadow-2xl border-2 group/btn"
-                        >
-                            <label htmlFor="import-awards" className="cursor-pointer flex items-center gap-3">
+                    <Dialog open={isImportOpen} onOpenChange={setIsImportOpen}>
+                        <DialogTrigger asChild>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                className="bg-black/40 border-primary/40 hover:border-primary/60 hover:bg-primary/5 text-white font-black uppercase tracking-widest text-[11px] h-10 px-5 rounded-xl transition-all shadow-2xl border-2 group/btn gap-2"
+                            >
                                 <Upload className="w-4 h-4 text-white group-hover/btn:scale-110 transition-transform" />
                                 IMPORTAR TXT
-                            </label>
-                        </Button>
-                    </div>
-                    <p className="text-[9px] font-bold text-muted-foreground/40 uppercase tracking-[0.2em]">
-                        Formato: CATEGORIA | TITULO | JUGADOR | EQUIPO | DESC
-                    </p>
+                            </Button>
+                        </DialogTrigger>
+                        <DialogContent className="max-w-xl border-primary/20 bg-zinc-950/95 backdrop-blur-md text-white">
+                            <DialogHeader>
+                                <DialogTitle className="text-xl font-black uppercase tracking-tighter flex items-center gap-3">
+                                    <ClipboardList className="w-6 h-6 text-primary" />
+                                    Importar Premios
+                                </DialogTitle>
+                            </DialogHeader>
+                            <div className="py-4 space-y-4">
+                                <Textarea
+                                    value={importText}
+                                    onChange={(e) => setImportText(e.target.value)}
+                                    placeholder={`Pega el contenido del archivo TXT aquí...`}
+                                    className="h-[300px] font-mono text-xs bg-black/50 border-primary/20 focus:border-primary/50 text-white placeholder:text-muted-foreground/50"
+                                />
+                                <div className="p-3 rounded-lg bg-primary/10 border border-primary/10">
+                                    <p className="text-[10px] font-bold text-primary/80 uppercase tracking-widest">
+                                        Formato: CATEGORIA | TITULO | JUGADOR | EQUIPO | DESC
+                                    </p>
+                                </div>
+                            </div>
+                            <DialogFooter>
+                                <Button variant="ghost" onClick={() => setIsImportOpen(false)} className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground hover:text-white">Cancelar</Button>
+                                <Button
+                                    onClick={handleImport}
+                                    disabled={isImporting || !importText.trim()}
+                                    className="text-[10px] font-bold uppercase tracking-widest bg-primary text-primary-foreground hover:bg-primary/90"
+                                >
+                                    {isImporting ? "Procesando..." : "Importar Premios"}
+                                </Button>
+                            </DialogFooter>
+                        </DialogContent>
+                    </Dialog>
+                </div>
+            )}
+
+            {isAdmin && (
+                <div className="flex flex-col items-end gap-2 pr-2 mt-2">
+                    <Dialog open={isDeleteConfirmOpen} onOpenChange={setIsDeleteConfirmOpen}>
+                        <DialogTrigger asChild>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                className="bg-red-500/10 border-red-500/20 hover:bg-red-500/20 text-red-400 font-black uppercase tracking-widest text-[11px] h-10 px-5 rounded-xl transition-all shadow-2xl border-2 gap-2"
+                            >
+                                <Trash2 className="w-4 h-4" />
+                                BORRAR PREMIOS
+                            </Button>
+                        </DialogTrigger>
+                        <DialogContent className="border-red-500/20 bg-zinc-950/95 backdrop-blur-md">
+                            <DialogHeader>
+                                <DialogTitle className="text-xl font-black uppercase tracking-tighter text-red-500 flex items-center gap-2">
+                                    <Trash2 className="w-5 h-5" />
+                                    ¿Borrar todos los premios?
+                                </DialogTitle>
+                            </DialogHeader>
+                            <div className="py-4 text-sm text-muted-foreground font-bold">
+                                Esta acción eliminará permanentemente todos los premios registrados (Ronda Inicial y Final). Esta acción no se puede deshacer.
+                            </div>
+                            <DialogFooter>
+                                <Button variant="ghost" onClick={() => setIsDeleteConfirmOpen(false)} className="font-bold uppercase tracking-widest text-xs">Cancelar</Button>
+                                <Button
+                                    onClick={handleDeleteAll}
+                                    disabled={isDeleting}
+                                    variant="destructive"
+                                    className="font-bold uppercase tracking-widest text-xs gap-2"
+                                >
+                                    {isDeleting ? "Borrando..." : "Confirmar Borrado"}
+                                </Button>
+                            </DialogFooter>
+                        </DialogContent>
+                    </Dialog>
                 </div>
             )}
 
